@@ -45,16 +45,15 @@ int main()
 
   // Create particle filter
   ParticleFilter pf;
-  int ts = 0;
 
-  h.onMessage([&ts,&pf,&map,&delta_t,&sensor_range,&sigma_pos,&sigma_landmark](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&pf,&map,&delta_t,&sensor_range,&sigma_pos,&sigma_landmark](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
 
     if (length && length > 2 && data[0] == '4' && data[1] == '2')
     {
-	  ts++;
+
       auto s = hasData(std::string(data));
       if (s != "") {
       	
@@ -73,9 +72,6 @@ int main()
 			double sense_y = std::stod(j[1]["sense_y"].get<std::string>());
 			double sense_theta = std::stod(j[1]["sense_theta"].get<std::string>());
 
-			cout << "================================================================" << endl;
-			cout << "ts:"<<ts<<" gps: x|y|theta=" << sense_x << "|" << sense_y << "|" << sense_theta << endl; 
-			cout << "================================================================" << endl;
 			pf.init(sense_x, sense_y, sense_theta, sigma_pos);
 		  }
 		  else {
@@ -83,9 +79,6 @@ int main()
 		  	double previous_velocity = std::stod(j[1]["previous_velocity"].get<std::string>());
 			double previous_yawrate = std::stod(j[1]["previous_yawrate"].get<std::string>());
 
-			cout << "================================================================" << endl;
-			cout << "ts:"<<ts<<" prediction: delta_t|v|yawrate=" << delta_t << "|" << previous_velocity << "|" << previous_yawrate << endl; 
-			cout << "================================================================" << endl;
 			pf.prediction(delta_t, sigma_pos, previous_velocity, previous_yawrate);
 		  }
 
@@ -118,12 +111,7 @@ int main()
         	}
 
 		  // Update the weights and resample
-		  cout << "ts:" << ts << " update weight: new " << noisy_observations.size() << " observations " << endl;
 		  pf.updateWeights(sensor_range, sigma_landmark, noisy_observations, map);
-		  for (int i = 0; i < pf.particles.size(); ++i) {
-			cout << " particles[" << i << "].weight=" << pf.particles[i].weight << endl;
-		  }
-		  cout << "ts:" << ts << " resample " << endl;
 		  pf.resample();
 
 		  // Calculate and output the average weighted error of the particle filter over all time steps so far.
@@ -138,10 +126,9 @@ int main()
 				best_particle = particles[i];
 			}
 			weight_sum += particles[i].weight;
-			cout << " particles[" << i << "].weight=" << particles[i].weight << endl;
 		  }
-		  cout << "ts:" << ts << " highest w " << highest_weight << endl;
-		  cout << "ts:" << ts << " average w " << weight_sum/num_particles << endl;
+		  cout << "highest w " << highest_weight << endl;
+		  cout << "average w " << weight_sum/num_particles << endl;
 
           json msgJson;
           msgJson["best_particle_x"] = best_particle.x;
@@ -154,7 +141,7 @@ int main()
           msgJson["best_particle_sense_y"] = pf.getSenseY(best_particle);
 
           auto msg = "42[\"best_particle\"," + msgJson.dump() + "]";
-           std::cout << msg << std::endl;
+          // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 	  
         }
